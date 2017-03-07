@@ -12,7 +12,7 @@ with open(sys.argv[1]) as f:
 data = np.array(data)
 
 print len(data)
-data = np.reshape(data, (300, 256, 1, 6))
+data = np.reshape(data, (2 * 200, 512, 1, 6))
 
 
 plt.plot(data[:, 150 , 0, :])

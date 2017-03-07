@@ -5,7 +5,7 @@ project(hackatron)
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -O3 -march=native -Wall ")
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "PGI")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -acc -Minfo=accel -ta=nvidia ")
 endif()
 
 set(SOURCE_FILES

@@ -1,7 +1,7 @@
 #include <math.h>
 #include "sim.h"
 
-//#pragma acc routine seq
+
 void model_dfun(const double *state, const double param, double *dstate) {
         double y0 = state[0];
         double y1 = state[1];
@@ -82,7 +82,8 @@ void model_dfun(const double *state, const double param, double *dstate) {
 //        dstate[4] = 0;
 //        dstate[5] = 0;
 //}
-//#pragma acc routine seq
+
+
 void euler_step( double param, const double *state, double *next){
 
         model_dfun(state, param, next);

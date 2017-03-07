@@ -5,7 +5,7 @@
 
 void print_state(double *state){
         FILE *file = fopen("out.array", "w");
-        for (int t=0; t < NGPU_TIMESTEPS; t+=100){
+        for (int t=0; t < NGPU_TIMESTEPS; t+=50){
             for (int p_idx=0; p_idx<NSWEEP; p_idx++){
                 int n_idx = 0;
                 for (int sv_idx=0; sv_idx<NSV; sv_idx++){
@@ -32,31 +32,30 @@ int main(int a, char**argv){
         prepare_initial_state(state);
 
         double *param_space = sweep_model(-3.0, 1.0);
-//        double *param_space = sweep_model(1.0, 3.0);
-// #pragma acc data copyin(state[0:lenstate]) copyout(dstate[0:lenstate])
-        //{
-         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
-                 //#pragma acc data copyin state copyout dstate
-                 //#pragma acc parallel loop
-                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
-                         //#pragma acc loop
-                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
-                                 long offset = t * NSWEEP * NNODES * NSV
+
+//        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
+        #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
+        for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
+                #pragma acc parallel loop
+                for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
+                        #pragma acc loop
+                        for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                                long offset = t * NSWEEP * NNODES * NSV
                                                 + param_idx * NNODES * NSV
                                                 + n_idx * NSV;
-                                 long next_state_offset = (t + 1) * NSWEEP * NNODES * NSV
+                                long next_state_offset = (t + 1) * NSWEEP * NNODES * NSV
                                                 + param_idx * NNODES * NSV
                                                 + n_idx * NSV;
-                                 heun_step(param_space[n_idx + param_idx * NNODES],
-                                            state + offset,
-                                            state + next_state_offset
-                                 );
-                         }
-                 }
-         }
-//}
+                                heun_step(param_space[n_idx + param_idx * NNODES],
+                                                state + offset,
+                                                state + next_state_offset
+                                        );
+                        }
+                }
+        }
+
         print_state(state);
-//print_params(param_space);
+        //print_params(param_space);
         free(state);
         free(param_space);
 
