@@ -11,10 +11,11 @@ with open(sys.argv[1]) as f:
 
 data = np.array(data)
 
-data = np.reshape(data, (80000, 7, 2, 6))
+print len(data)
+data = np.reshape(data, (300, 256, 1, 6))
 
 
-plt.plot(data[::32 , 0 , 0, :])
+plt.plot(data[:, 150 , 0, :])
 
 # data = data[: , : , 0, 0]
 ##-----

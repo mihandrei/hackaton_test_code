@@ -5,8 +5,14 @@
 
 void print_state(double *state){
         FILE *file = fopen("out.array", "w");
-        for (int i=0; i<NSV*NNODES*NSWEEP*NGPU_TIMESTEPS;i++)
-                fprintf(file, "%f ", state[i]);
+        for (int t=0; t < NGPU_TIMESTEPS; t+=100){
+            for (int p_idx=0; p_idx<NSWEEP; p_idx++){
+                int n_idx = 0;
+                for (int sv_idx=0; sv_idx<NSV; sv_idx++){
+                    fprintf(file, "%f ", state[sv_idx + n_idx*NSV + p_idx * NSV * NNODES + t * NSV*NNODES*NSWEEP]);
+                }
+            }
+        }
         fclose(file);
 }
 

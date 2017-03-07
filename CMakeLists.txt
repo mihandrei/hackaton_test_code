@@ -2,7 +2,11 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(hackatron)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -lm")
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -O3 -march=native -Wall ")
+elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "PGI")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 ")
+endif()
 
 set(SOURCE_FILES
         
@@ -14,3 +18,4 @@ sim.c
 )
 
 add_executable(hackatron ${SOURCE_FILES})
+target_link_libraries(hackatron m)

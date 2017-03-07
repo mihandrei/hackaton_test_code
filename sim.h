@@ -1,8 +1,8 @@
 #ifndef SIM_
 #define SIM_
 //(4000/0.05)
-#define NGPU_TIMESTEPS 80000
-#define NSWEEP 7
+#define NGPU_TIMESTEPS 30000
+#define NSWEEP 256
 
 #define NSV 6
 #define NNODES 2

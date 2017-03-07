@@ -24,7 +24,7 @@ void model_dfun(const double *state, const double param, double *dstate) {
         double Iext = 3.1;
         double Iext2 = 0.45;
         double slope = 0.0;
-        double x0 = -1.5;//param;
+        double x0 = param; //-1.5
         double tt = 1.0;
 
 
