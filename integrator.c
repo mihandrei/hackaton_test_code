@@ -1,13 +1,8 @@
 #include <math.h>
 #include "sim.h"
 
-//params[node_idx*NVAR_PARAM + par_idx];
-//state[sv + par1_idx * NSV + par2_idx * NSV * NPAR1_SWEEP + n_idx * NSV * NPAR1_SWEEP * NPAR2_SWEEP + time * NSV * NPAR1_SWEEP *NPAR2_SWEEP *NNODES];
-void model_dfun(int n_idx, int param_idx, const double *state, const double *param_space, double *dstate) {
-
-        state = state + param_idx*NNODES*NSV + n_idx*NSV;
-        dstate = dstate + param_idx*NNODES*NSV + n_idx*NSV;
-
+//#pragma acc routine seq
+void model_dfun(const double *state, const double param, double *dstate) {
         double y0 = state[0];
         double y1 = state[1];
         double y2 = state[2];
@@ -24,16 +19,15 @@ void model_dfun(int n_idx, int param_idx, const double *state, const double *par
         double r = 0.00035;
         double Kvf = 0.0;
         double Kf = 0.0;
-        double Ks = 0.0;
+        double Ks = 1.5;//0.0;
         double tau = 10.0;
         double Iext = 3.1;
         double Iext2 = 0.45;
         double slope = 0.0;
-        double x0 = param_space[n_idx + param_idx*NNODES]; //i * (max_x0 - min_x0) / (double len -1)+ min_x0;
+        double x0 = -1.5;//param;
         double tt = 1.0;
 
-//        double cpop_1 = coupling[0];
-//        double cpop_2 = coupling[1];
+
         double cpop_1 = 0;
         double cpop_2 = 0;
 
@@ -41,7 +35,7 @@ void model_dfun(int n_idx, int param_idx, const double *state, const double *par
         if (y0 < 0.0)
                 tmp = -a * pow(y0, 2) + b * y0;
         else
-                tmp = slope- y3 + 0.6 * pow(y2 - 4.0, 2);
+                tmp = slope - y3 + 0.6 * pow(y2 - 4.0, 2);
 
 
         dstate[0] = y1 - y2 + Iext + Kvf * cpop_1 + tmp * y0;
@@ -72,24 +66,45 @@ void model_dfun(int n_idx, int param_idx, const double *state, const double *par
         for (int sv = 0; sv < 6; ++sv)
                 dstate[sv] *= tt;
 }
-/*
-void heun_step(int i, struct ModelEpi *mp, const double *state,
-        double *next){
 
-    int i;
-    double *dleft, *dright; //todo
+//void model_dfun(const double *state, const double param, double *dstate) {
+//        double y0 = state[0];
+//        double y1 = state[1];
+//        double y2 = state[2];
+//        double y3 = state[3];
+//        double y4 = state[4];
+//        double y5 = state[5];
+//
+//        dstate[0] = y1;
+//        dstate[1] = -param * y0;
+//        dstate[2] = 0;
+//        dstate[3] = 0;
+//        dstate[4] = 0;
+//        dstate[5] = 0;
+//}
+//#pragma acc routine seq
+void euler_step( double param, const double *state, double *next){
 
-    model_dfun(i, mp, state, dleft);
+        model_dfun(state, param, next);
 
-    for (i = 0; i < NSV; ++i) {
-        nexteuler[i] = state[i] + DT * dleft[i];// + gr_noise[i];
-    }
-
-    model_dfun(i, mp, state, dright);
-
-    for (i = 0; i < NSV; ++i) {
-        next[i] = state[i] + 0.5 * DT * (dleft[i] + dright[i]);// + gr_noise[i];
-    }
+        for (int sv = 0; sv < NSV; ++sv) {
+                next[sv] = state[sv] + DT * next[sv];
+        }
 }
 
-*/
+void heun_step(double param, const double *state, double *next){
+        double dleft[NSV];
+        double dright[NSV];
+        double nexteuler[NSV];
+
+        model_dfun(state, param, dleft);
+
+        for (int sv = 0; sv < NSV; ++sv) {
+                nexteuler[sv] = state[sv] + DT * dleft[sv];
+        }
+        model_dfun(nexteuler, param, dright);
+        for (int sv = 0; sv < NSV; ++sv) {
+                next[sv] = state[sv] + 0.5 * DT * (dleft[sv] + dright[sv]);
+        }
+}
+

@@ -1,26 +1,59 @@
 #include <stdlib.h>
-#include <math.h>
+#include <stdio.h>
 #include "sim.h"
 
 
-int main(int a, char**argv){
-        struct ModelEpi *sweep = new_model(NSWEEP);
+void print_state(double *state){
+        FILE *file = fopen("out.array", "w");
+        for (int i=0; i<NSV*NNODES*NSWEEP*NGPU_TIMESTEPS;i++)
+                fprintf(file, "%f ", state[i]);
+        fclose(file);
+}
 
-        double *state = malloc(sizeof(double) * NSV * NSWEEP);
-        double *dstate = malloc(sizeof(double) * NSV * NSWEEP);
+
+void print_params(double *params){
+        FILE *file = fopen("out.array", "w");
+        for (int i=0; i<NNODES*NSWEEP;i++)
+                fprintf(file, "%f ", params[i]);
+        fclose(file);
+}
+
+
+
+int main(int a, char**argv){
+        double *state = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS);
 
         prepare_initial_state(state);
 
-        sweep_model(sweep, -3.0, 1.0);
-
-        // for (int t = 0; t < time_steps; t++)
-        for(int pse1_idx=0; i<sweep->len; i++){
-                model_dfun(i, sweep, state, dstate);
-        }
-
-        free(dstate);
+        double *param_space = sweep_model(-3.0, 1.0);
+//        double *param_space = sweep_model(1.0, 3.0);
+// #pragma acc data copyin(state[0:lenstate]) copyout(dstate[0:lenstate])
+        //{
+         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
+                 //#pragma acc data copyin state copyout dstate
+                 //#pragma acc parallel loop
+                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
+                         //#pragma acc loop
+                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                                 long offset = t * NSWEEP * NNODES * NSV
+                                                + param_idx * NNODES * NSV
+                                                + n_idx * NSV;
+                                 long next_state_offset = (t + 1) * NSWEEP * NNODES * NSV
+                                                + param_idx * NNODES * NSV
+                                                + n_idx * NSV;
+                                 heun_step(param_space[n_idx + param_idx * NNODES],
+                                            state + offset,
+                                            state + next_state_offset
+                                 );
+                         }
+                 }
+         }
+//}
+        print_state(state);
+//print_params(param_space);
         free(state);
-        free_model(sweep);
+        free(param_space);
 
         return 0;
 }
+
