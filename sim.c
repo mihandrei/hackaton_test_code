@@ -10,7 +10,7 @@ void print_state(double *state){
 
         fprintf(file, "%d %d %d %d\n", NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE, NSWEEP, NNODES, NSV);
 
-        for (int t=0; t < NGPU_TIMESTEPS; t+=TEMPORAL_SUBSAMPLE) {
+        for (int t=0; t < NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE; t++) {
                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
                                 for (int sv_idx = 0; sv_idx < NSV; sv_idx++) {
@@ -36,6 +36,22 @@ void print_params(double *params){
 }
 
 
+void data_reduce(double *ret, const double *state, int t) {
+        if (t % TEMPORAL_SUBSAMPLE == 0){ // % here can be avoided by another loop under t in parent temporal iteration
+                t = t / TEMPORAL_SUBSAMPLE;
+                for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
+                        for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                                long offset = param_idx * NNODES * NSV
+                                               + n_idx * NSV;
+                                long ret_idx = t*NSWEEP*NNODES*NSV + offset;
+                                for (int sv_idx = 0; sv_idx < NSV; sv_idx++) {
+                                        ret[ret_idx + sv_idx] = state[offset + sv_idx];
+                                }
+                        }
+                }
+        }
+}
+
 void kernel_step(double *ret, double *param_space, double *state, double *next){
 //        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
@@ -53,17 +69,17 @@ void kernel_step(double *ret, double *param_space, double *state, double *next){
                                         );
                         }
                 }
+                // swap current and next buffer
                 double  *tmp = state;
                 state = next;
                 next = tmp;
-                for (int i = 0; i < NSWEEP * NNODES * NSV; ++i) {
-                        ret[t*NSWEEP*NNODES*NSV + i] = next[i];
-                }
+                // data reduction and copy to output buffer
+                data_reduce(ret, state, t);
         }
 }
 
 int main(int a, char**argv){
-        double *timeseries = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS);
+        double *timeseries = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE);
 
         double *state = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
         double *next = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
