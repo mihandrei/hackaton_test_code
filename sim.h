@@ -11,6 +11,7 @@
 
 // coupling var indexes
 static int epi_coupling_var_ids[] = {0, 3};
+double incoming_activity[N_CV];
 
 extern double conn_74_weights[NNODES * NNODES]; // connectivity matrix
 

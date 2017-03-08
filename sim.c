@@ -24,6 +24,11 @@ void print_params(double *params){
         fclose(file);
 }
 
+void reset_incoming_activity(double *incoming_activity){
+        for (int i=0; i<N_CV;i++) {
+            incoming_activity[i]=0;
+        }
+}
 
 void kernel_step(double *state, double *param_space){
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
@@ -33,8 +38,7 @@ void kernel_step(double *state, double *param_space){
                         #pragma acc loop
                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
                                 // Calc incoming activity from coupled
-                                double *incoming_activity = calloc(N_CV, sizeof(double));
-
+                                reset_incoming_activity(incoming_activity);
                                 double *conn_node_weights = conn_74_weights + n_idx * NNODES;
                                 for(int cn_idx = 0; cn_idx < NNODES; cn_idx++) {
                                     long coupling_node_offset = t * NSWEEP * NNODES * NSV
@@ -60,7 +64,6 @@ void kernel_step(double *state, double *param_space){
                                                 state + offset,
                                                 state + next_state_offset
                                         );
-                                free(incoming_activity);
                         }
                 }
         }
