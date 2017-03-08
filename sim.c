@@ -25,7 +25,7 @@ void print_params(double *params){
 }
 
 
-void kernel_step(double *state, double *param_space){
+void kernel_step(double *ret, double *param_space, double *state, double *next){
 //        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
@@ -34,34 +34,39 @@ void kernel_step(double *state, double *param_space){
                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                         #pragma acc loop
                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
-                                long offset = t * NSWEEP * NNODES * NSV
-                                                + param_idx * NNODES * NSV
-                                                + n_idx * NSV;
-                                long next_state_offset = (t + 1) * NSWEEP * NNODES * NSV
-                                                + param_idx * NNODES * NSV
-                                                + n_idx * NSV;
+                                long offset = param_idx * NNODES * NSV
+                                              + n_idx * NSV;
                                 heun_step(param_space[n_idx + param_idx * NNODES],
                                                 state + offset,
-                                                state + next_state_offset
+                                                next + offset
                                         );
                         }
+                }
+                double  *tmp = state;
+                state = next;
+                next = tmp;
+                for (int i = 0; i < NSWEEP * NNODES * NSV; ++i) {
+                        ret[t*NSWEEP*NNODES*NSV + i] = next[i];
                 }
         }
 }
 
 int main(int a, char**argv){
-        double *state = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS);
+        double *timeseries = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS);
+
+        double *state = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
+        double *next = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
 
         prepare_initial_state(state);
 
-        double *param_space = sweep_model(-3.0, 1.0);
+        double *param_space = sweep_model(-3.8, -1.0);
 
         double start_time = omp_get_wtime();
-        kernel_step(state, param_space);
+        kernel_step(timeseries, param_space, state, next);
         double time = omp_get_wtime() - start_time;
         printf("computation time %f sec\n", time);
 
-        print_state(state);
+        print_state(timeseries);
         //print_params(param_space);
         free(state);
         free(param_space);
