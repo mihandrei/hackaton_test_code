@@ -7,15 +7,18 @@ data = []
 
 with open(sys.argv[1]) as f:
     for d in f.read().split():
-        data.append(float(d))
-
+        try:
+            data.append(float(d))
+        except:
+            print d
+            data.append(0)
 data = np.array(data)
 
 print len(data)
-data = np.reshape(data, (2 * 200, 512, 1, 6))
+data = np.reshape(data, (2 * 300, 128, 1, 6))
 
 
-plt.plot(data[:, 150 , 0, :])
+plt.plot(data[:, 100 , 0, :])
 
 # data = data[: , : , 0, 0]
 ##-----

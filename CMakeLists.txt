@@ -9,7 +9,7 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "PGI")
 endif()
 
 set(SOURCE_FILES
-        
+test_data.c
 integrator.c
 setup.c
 sim.c

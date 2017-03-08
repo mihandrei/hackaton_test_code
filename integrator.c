@@ -2,7 +2,7 @@
 #include "sim.h"
 
 
-void model_dfun(const double *state, const double param, double *dstate) {
+void model_dfun(const double *state, const double *incoming_activity, const double param, double *dstate) {
         double y0 = state[0];
         double y1 = state[1];
         double y2 = state[2];
@@ -24,12 +24,12 @@ void model_dfun(const double *state, const double param, double *dstate) {
         double Iext = 3.1;
         double Iext2 = 0.45;
         double slope = 0.0;
-        double x0 = param; //-1.5
+        double x0 = -1.5; //param
         double tt = 1.0;
 
 
-        double cpop_1 = 0;
-        double cpop_2 = 0;
+        double cpop_1 = incoming_activity[0];
+        double cpop_2 = incoming_activity[1];
 
         // population 1
         if (y0 < 0.0)
@@ -67,43 +67,17 @@ void model_dfun(const double *state, const double param, double *dstate) {
                 dstate[sv] *= tt;
 }
 
-//void model_dfun(const double *state, const double param, double *dstate) {
-//        double y0 = state[0];
-//        double y1 = state[1];
-//        double y2 = state[2];
-//        double y3 = state[3];
-//        double y4 = state[4];
-//        double y5 = state[5];
-//
-//        dstate[0] = y1;
-//        dstate[1] = -param * y0;
-//        dstate[2] = 0;
-//        dstate[3] = 0;
-//        dstate[4] = 0;
-//        dstate[5] = 0;
-//}
-
-
-void euler_step( double param, const double *state, double *next){
-
-        model_dfun(state, param, next);
-
-        for (int sv = 0; sv < NSV; ++sv) {
-                next[sv] = state[sv] + DT * next[sv];
-        }
-}
-
-void heun_step(double param, const double *state, double *next){
+void heun_step(double param, const double *incoming_activity, const double *state, double *next){
         double dleft[NSV];
         double dright[NSV];
         double nexteuler[NSV];
 
-        model_dfun(state, param, dleft);
+        model_dfun(state, incoming_activity, param, dleft);
 
         for (int sv = 0; sv < NSV; ++sv) {
                 nexteuler[sv] = state[sv] + DT * dleft[sv];
         }
-        model_dfun(nexteuler, param, dright);
+        model_dfun(nexteuler, incoming_activity, param, dright);
         for (int sv = 0; sv < NSV; ++sv) {
                 next[sv] = state[sv] + 0.5 * DT * (dleft[sv] + dright[sv]);
         }

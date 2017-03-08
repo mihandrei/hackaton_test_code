@@ -26,13 +26,29 @@ void print_params(double *params){
 
 
 void kernel_step(double *state, double *param_space){
-//        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
                 #pragma acc parallel loop
                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                         #pragma acc loop
                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                                // Calc incoming activity from coupled
+                                double *incoming_activity = calloc(N_CV, sizeof(double));
+
+                                double *conn_node_weights = conn_74_weights + n_idx * NNODES;
+                                for(int cn_idx = 0; cn_idx < NNODES; cn_idx++) {
+                                    long coupling_node_offset = t * NSWEEP * NNODES * NSV
+                                                                + param_idx * NNODES * NSV
+                                                                + cn_idx * NSV;
+                                    double *coupled_node_state = state + coupling_node_offset;
+                                    for(int cv_idx = 0; cv_idx < N_CV; cv_idx++) {
+                                        if(conn_node_weights[cn_idx] != 0) {
+                                            // coupled function
+                                            incoming_activity[cv_idx] += conn_node_weights[cn_idx] * coupled_node_state[epi_coupling_var_ids[cv_idx]];
+                                        }
+                                    }
+                                }
+
                                 long offset = t * NSWEEP * NNODES * NSV
                                                 + param_idx * NNODES * NSV
                                                 + n_idx * NSV;
@@ -40,9 +56,11 @@ void kernel_step(double *state, double *param_space){
                                                 + param_idx * NNODES * NSV
                                                 + n_idx * NSV;
                                 heun_step(param_space[n_idx + param_idx * NNODES],
+                                                incoming_activity,
                                                 state + offset,
                                                 state + next_state_offset
                                         );
+                                free(incoming_activity);
                         }
                 }
         }
