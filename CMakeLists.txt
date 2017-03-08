@@ -11,7 +11,6 @@ endif()
 set(SOURCE_FILES
         
 integrator.c
-rk_mt.c
 setup.c
 sim.c
 

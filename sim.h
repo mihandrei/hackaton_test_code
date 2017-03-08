@@ -8,6 +8,8 @@
 #define NNODES 4
 #define DT 0.1
 
+extern double *conn_74_weights;
+
 #pragma acc routine seq
 void model_dfun(const double *state, const double param, double *dstate) ;
 #pragma acc routine seq
