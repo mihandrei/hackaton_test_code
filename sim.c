@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "sim.h"
-
+#include <omp.h>
 
 void print_state(double *state){
         FILE *file = fopen("out.array", "w");
@@ -25,14 +25,7 @@ void print_params(double *params){
 }
 
 
-
-int main(int a, char**argv){
-        double *state = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS);
-
-        prepare_initial_state(state);
-
-        double *param_space = sweep_model(-3.0, 1.0);
-
+void kernel_step(double *state, double *param_space){
 //        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
@@ -53,6 +46,19 @@ int main(int a, char**argv){
                         }
                 }
         }
+}
+
+int main(int a, char**argv){
+        double *state = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS);
+
+        prepare_initial_state(state);
+
+        double *param_space = sweep_model(-3.0, 1.0);
+
+        double start_time = omp_get_wtime();
+        kernel_step(state, param_space);
+        double time = omp_get_wtime() - start_time;
+        printf("computation time %f sec\n", time);
 
         print_state(state);
         //print_params(param_space);

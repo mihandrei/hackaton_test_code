@@ -6,7 +6,7 @@
 
 #define NSV 6
 #define NNODES 4
-#define DT 0.1
+#define DT 0.025
 
 extern double *conn_74_weights;
 

@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 2.8.4)
 project(hackatron)
 
 if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -O3 -march=native -Wall ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -O3 -march=native -Wall -fopenmp")
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "PGI")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -acc -Minfo=accel -ta=nvidia ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -acc -Minfo=accel -ta=nvidia -openmp")
 endif()
 
 set(SOURCE_FILES
