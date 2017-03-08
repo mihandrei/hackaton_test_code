@@ -1,12 +1,12 @@
 #ifndef SIM_
 #define SIM_
 //(4000/0.05)
-#define NGPU_TIMESTEPS 20000
-#define NSWEEP 512
+#define NGPU_TIMESTEPS 800000
+#define NSWEEP 4
 
 #define NSV 6
-#define NNODES 4
-#define DT 0.025
+#define NNODES 1
+#define DT 0.02
 
 extern double *conn_74_weights;
 

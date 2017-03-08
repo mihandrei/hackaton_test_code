@@ -1,21 +1,28 @@
 from matplotlib import pylab as plt
-import matplotlib.cm as cm
 import numpy as np
 import sys
 
-data = []
+def read_out_array(pth):
+    data = []
 
-with open(sys.argv[1]) as f:
-    for d in f.read().split():
-        data.append(float(d))
+    with open(pth) as f:
+        data_shape = tuple(int(d) for d in next(f).split())
+        for line in f:
+            for d in line.split():
+                data.append(float(d))
 
-data = np.array(data)
+    data = np.array(data)
+    data = np.reshape(data, data_shape)
 
-print len(data)
-data = np.reshape(data, (2 * 200, 512, 1, 6))
+    print 'read  data of shape %s' % str(data_shape)
+    return data
 
+data = read_out_array(sys.argv[1])
 
-plt.plot(data[:, 150 , 0, :])
+for i in range(4):
+    # plt.plot(data[:, i , 0, 1])
+    plt.plot(data[:, i , 0, 2])
+    plt.plot(data[:, i , 0, 0] - data[:, i , 0, 3])
 
 # data = data[: , : , 0, 0]
 ##-----

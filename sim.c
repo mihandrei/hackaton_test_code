@@ -3,15 +3,26 @@
 #include "sim.h"
 #include <omp.h>
 
+#define TEMPORAL_SUBSAMPLE 32
+
 void print_state(double *state){
         FILE *file = fopen("out.array", "w");
-        for (int t=0; t < NGPU_TIMESTEPS; t+=50){
-            for (int p_idx=0; p_idx<NSWEEP; p_idx++){
-                int n_idx = 0;
-                for (int sv_idx=0; sv_idx<NSV; sv_idx++){
-                    fprintf(file, "%f ", state[sv_idx + n_idx*NSV + p_idx * NSV * NNODES + t * NSV*NNODES*NSWEEP]);
+
+        fprintf(file, "%d %d %d %d\n", NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE, NSWEEP, NNODES, NSV);
+
+        for (int t=0; t < NGPU_TIMESTEPS; t+=TEMPORAL_SUBSAMPLE) {
+                for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
+                        for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                                for (int sv_idx = 0; sv_idx < NSV; sv_idx++) {
+                                        long offset = t * NSWEEP * NNODES * NSV
+                                                      + param_idx * NNODES * NSV
+                                                      + n_idx * NSV;
+                                        fprintf(file, "%f ", state[sv_idx + offset]);
+                                }
+                                fprintf(file, "\n");
+                        }
                 }
-            }
+                fprintf(file, "\n\n");
         }
         fclose(file);
 }
@@ -69,6 +80,8 @@ int main(int a, char**argv){
         print_state(timeseries);
         //print_params(param_space);
         free(state);
+        free(next);
+        free(timeseries);
         free(param_space);
 
         return 0;
