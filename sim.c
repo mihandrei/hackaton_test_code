@@ -29,6 +29,7 @@ void kernel_step(double *state, double *param_space){
 //        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
+                //#pragma omp parallel for
                 #pragma acc parallel loop
                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                         #pragma acc loop
