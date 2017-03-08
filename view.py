@@ -20,9 +20,9 @@ def read_out_array(pth):
 data = read_out_array(sys.argv[1])
 
 for i in range(4):
-    # plt.plot(data[:, i , 0, 1])
-    plt.plot(data[:, i , 0, 2])
-    plt.plot(data[:, i , 0, 0] - data[:, i , 0, 3])
+    plt.plot(data[:, i , 0, 0])
+    # plt.plot(data[:, i , 0, 2])
+    # plt.plot(data[:, i , 0, 0] - data[:, i , 0, 3])
 
 # data = data[: , : , 0, 0]
 ##-----

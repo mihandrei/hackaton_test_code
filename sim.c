@@ -7,16 +7,16 @@
 
 void print_state(double *state){
         FILE *file = fopen("out.array", "w");
-
-        fprintf(file, "%d %d %d %d\n", NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE, NSWEEP, NNODES, NSV);
+        // NOBSERVED vars is 1 . lpf is computed in kernel
+        fprintf(file, "%d %d %d %d\n", NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE, NSWEEP, NNODES, 1);
 
         for (int t=0; t < NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE; t++) {
                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
-                                for (int sv_idx = 0; sv_idx < NSV; sv_idx++) {
-                                        long offset = t * NSWEEP * NNODES * NSV
-                                                      + param_idx * NNODES * NSV
-                                                      + n_idx * NSV;
+                                for (int sv_idx = 0; sv_idx < 1; sv_idx++) {
+                                        long offset = t * NSWEEP * NNODES * 1
+                                                      + param_idx * NNODES * 1
+                                                      + n_idx * 1;
                                         fprintf(file, "%f ", state[sv_idx + offset]);
                                 }
                                 fprintf(file, "\n");
@@ -43,10 +43,14 @@ void data_reduce(double *ret, const double *state, int t) {
                         for (int n_idx = 0; n_idx < NNODES; n_idx++) {
                                 long offset = param_idx * NNODES * NSV
                                                + n_idx * NSV;
-                                long ret_idx = t*NSWEEP*NNODES*NSV + offset;
-                                for (int sv_idx = 0; sv_idx < NSV; sv_idx++) {
-                                        ret[ret_idx + sv_idx] = state[offset + sv_idx];
-                                }
+                                // NOBSERVED=1
+                                // collapse all svars. compute lfp
+                                long ret_idx = t*NSWEEP*NNODES*1 + param_idx * NNODES*1 + n_idx*1;
+                                ret[ret_idx] = state[offset+0] - state[offset+3];
+                                //to copy all svars :
+//                                for (int sv_idx = 0; sv_idx < NSV; sv_idx++) {
+//                                        ret[ret_idx + sv_idx] = state[offset + sv_idx];
+//                                }
                         }
                 }
         }
@@ -79,7 +83,7 @@ void kernel_step(double *ret, double *param_space, double *state, double *next){
 }
 
 int main(int a, char**argv){
-        double *timeseries = malloc(sizeof(double) * NSV * NNODES * NSWEEP * NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE);
+        double *timeseries = malloc(sizeof(double) * 1 * NNODES * NSWEEP * NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE);
 
         double *state = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
         double *next = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
