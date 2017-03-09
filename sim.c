@@ -46,6 +46,7 @@ void print_params(double *params){
         fclose(file);
 }
 
+#pragma acc routine seq
 void update_online_variance(int t, double *M2, double *mean, const double *state){
         for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                 for (int n_idx = 0; n_idx < NNODES; n_idx++) {
@@ -106,21 +107,28 @@ void integration_kernel(const double *param_space, const double *state, double *
 
 void kernels_step(double *ret, double *param_space, double *state, double *next,
                   double *M2, double *mean){
-//        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
-        #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
-        for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
-                integration_kernel(param_space, state, next);
-                // swap current and next buffer
-                double *tmp = state;
-                state = next;
-                next = tmp;
-                // data reduction and copy to output buffer
-                data_reduce_kernel(ret, state, t);
-                update_online_variance(t, M2, mean, state);
-        }
 
-        for (int i = 0; i < NSWEEP * NNODES * NSV; ++i) {
-                M2[i] /= (NGPU_TIMESTEPS - 1);
+        #pragma acc data copy(state[0: NSV * NNODES * NSWEEP])\
+                              create(next[0: NSV * NNODES * NSWEEP])\
+                              param_space[0: NNODES * NSWEEP]\
+                              copyout(M2[0: NSV * NNODES * NSWEEP])\
+                              create(mean[0: NSV * NNODES * NSWEEP]\
+                              copyout(ret[0:1 * NNODES * NSWEEP * NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE]))
+        {
+                for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
+                        integration_kernel(param_space, state, next);
+                        // swap current and next buffer
+                        double *tmp = state;
+                        state = next;
+                        next = tmp;
+                        // data reduction and copy to output buffer
+                        data_reduce_kernel(ret, state, t);
+                        update_online_variance(t, M2, mean, state);
+                }
+
+                for (int i = 0; i < NSWEEP * NNODES * NSV; ++i) {
+                        M2[i] /= (NGPU_TIMESTEPS - 1);
+                }
         }
 }
 
