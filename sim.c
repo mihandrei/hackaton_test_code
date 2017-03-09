@@ -27,6 +27,17 @@ void print_state(double *state){
         fclose(file);
 }
 
+void print_variance(double *M2){
+        FILE *file = fopen("variance.array", "w");
+        fprintf(file, "%d %d %d \n", NSWEEP, NNODES, NSV);
+        for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
+                for (int i = 0; i < NSV * NNODES; i++) {
+                        fprintf(file, "%f ", M2[param_idx * NNODES * NSV + i]);
+                }
+                fprintf(file, "\n");
+        }
+        fclose(file);
+}
 
 void print_params(double *params){
         FILE *file = fopen("out.array", "w");
@@ -35,6 +46,24 @@ void print_params(double *params){
         fclose(file);
 }
 
+void update_online_variance(int t, double *M2, double *mean, const double *state){
+        for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
+                for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                        long offset = param_idx * NNODES * NSV
+                                      + n_idx * NSV;
+
+                        for (int sv = 0; sv < NSV; sv++) {
+                                double delta, delta2;
+                                double x = state[offset + sv];
+
+                                delta = x - mean[offset + sv];
+                                mean[offset + sv] += delta / (t + 1);
+                                delta2 = x - mean[offset + sv];
+                                M2[offset + sv] += delta * delta2;
+                        }
+                }
+        }
+}
 
 void data_reduce(double *ret, const double *state, int t) {
         if (t % TEMPORAL_SUBSAMPLE == 0){ // % here can be avoided by another loop under t in parent temporal iteration
@@ -56,11 +85,12 @@ void data_reduce(double *ret, const double *state, int t) {
         }
 }
 
-void kernel_step(double *ret, double *param_space, double *state, double *next){
+void kernel_step(double *ret, double *param_space, double *state, double *next,
+                 double *M2, double *mean){
 //        #pragma acc kernels copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP * NGPU_TIMESTEPS]) copyin(param_space[0: NNODES * NSWEEP])
         for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
-                //#pragma omp parallel for
+                #pragma omp parallel for
                 #pragma acc parallel loop
                 for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                         #pragma acc loop
@@ -79,6 +109,10 @@ void kernel_step(double *ret, double *param_space, double *state, double *next){
                 next = tmp;
                 // data reduction and copy to output buffer
                 data_reduce(ret, state, t);
+                update_online_variance(t, M2, mean, state);
+        }
+        for (int i = 0; i < NSWEEP * NNODES * NSV; ++i) {
+                M2[i] /= (NGPU_TIMESTEPS - 1);
         }
 }
 
@@ -88,16 +122,20 @@ int main(int a, char**argv){
         double *state = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
         double *next = malloc(sizeof(double) * NSWEEP * NNODES * NSV);
 
+        double *M2 = calloc( NSWEEP * NNODES * NSV, sizeof(double));
+        double *mean = calloc( NSWEEP * NNODES * NSV, sizeof(double));
+
         prepare_initial_state(state);
 
         double *param_space = sweep_model(-3.8, -1.0);
 
         double start_time = omp_get_wtime();
-        kernel_step(timeseries, param_space, state, next);
+        kernel_step(timeseries, param_space, state, next, M2, mean);
         double time = omp_get_wtime() - start_time;
         printf("computation time %f sec\n", time);
 
         print_state(timeseries);
+        print_variance(M2);
         //print_params(param_space);
         free(state);
         free(next);
