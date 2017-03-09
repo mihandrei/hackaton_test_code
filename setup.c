@@ -11,8 +11,11 @@
 //};
 
 double initials[] = {
--0.533906,-8.445781,3.526376,-1.224648,1.023215,0.001695,
 
+                0.6, -0.1, 3.5, -1.0, 1.0, 0.0,
+                0.6, -0.3, 3.0, -1.0, 1.0, 0.1
+
+//-0.533906,-8.445781,3.526376,-1.224648,1.023215,0.001695,
 //-1.10188,-8.826803,3.412462,-1.261609,1.06071,0.047645
 
 };
@@ -33,7 +36,7 @@ void prepare_initial_state(double *state){
                                // double lo = epi_state_var_range[sv * 2];
                                // double hi = epi_state_var_range[sv * 2 + 1];
                                 //state[sv + n_idx*NSV + p_idx * NSV * NNODES] = (lo + hi) / 2;
-                                state[sv + n_idx*NSV + p_idx * NSV * NNODES] = initials[sv];
+                                state[sv + n_idx*NSV + p_idx * NSV * NNODES] = initials[sv + n_idx*NSV];
                         }
                 }
         }

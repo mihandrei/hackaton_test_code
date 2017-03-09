@@ -89,15 +89,41 @@ void data_reduce_kernel(double *ret, const double *state, int t) {
 }
 
 #pragma acc routine seq
-void integration_kernel(const double *param_space, const double *state, double *next) {
+void compute_incoming_activity_kernel(const double *state,
+                                      double *incoming_activity,
+                                      const double *conn_node_weights) {
+        for(int cn_idx = 0; cn_idx < NNODES; cn_idx++) {
+                if(conn_node_weights[cn_idx] == 0)
+                        continue;
+
+                const double *coupled_node_state = state + cn_idx * NSV;
+
+                for(int cv_idx = 0; cv_idx < N_CV; cv_idx++) {
+                        incoming_activity[cv_idx] += conn_node_weights[cn_idx]
+                                                     * coupled_node_state[epi_coupling_var_ids[cv_idx]];
+                }
+        }
+}
+
+#pragma acc routine seq
+void integration_kernel(const double *param_space, const double *state, double *next, const double *connectivity) {
         #pragma omp parallel for
         #pragma acc parallel loop
         for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
                 #pragma acc loop
                 for (int n_idx = 0; n_idx < NNODES; n_idx++) {
+                        double incoming_activity[N_CV] = {0};
+                        // Calc incoming activity from coupled
+                        const double *conn_node_weights = connectivity + n_idx * NNODES;
+
+                        compute_incoming_activity_kernel(state + param_idx * NNODES * NSV,
+                                                         incoming_activity,
+                                                         conn_node_weights);
+
                         long offset = param_idx * NNODES * NSV
                                       + n_idx * NSV;
-                        heun_step(param_space[n_idx + param_idx * NNODES],
+
+                        heun_step(param_space[n_idx + param_idx * NNODES], incoming_activity,
                                         state + offset,
                                         next + offset
                                 );
@@ -106,17 +132,18 @@ void integration_kernel(const double *param_space, const double *state, double *
 }
 
 void kernels_step(double *ret, double *param_space, double *state, double *next,
-                  double *M2, double *mean){
+                  double *M2, double *mean, const double *connectivity){
 
         #pragma acc data copy(state[0: NSV * NNODES * NSWEEP])\
                               create(next[0: NSV * NNODES * NSWEEP])\
                               param_space[0: NNODES * NSWEEP]\
                               copyout(M2[0: NSV * NNODES * NSWEEP])\
                               create(mean[0: NSV * NNODES * NSWEEP]\
+                              copyin(connectivity[0:NNODES*NNODES]\
                               copyout(ret[0:1 * NNODES * NSWEEP * NGPU_TIMESTEPS/TEMPORAL_SUBSAMPLE]))
         {
                 for (int t = 0; t < NGPU_TIMESTEPS - 1; t++) {
-                        integration_kernel(param_space, state, next);
+                        integration_kernel(param_space, state, next, connectivity);
                         // swap current and next buffer
                         double *tmp = state;
                         state = next;
@@ -146,7 +173,7 @@ int main(int a, char**argv){
         double *param_space = sweep_model(-3.8, -1.0);
 
         double start_time = omp_get_wtime();
-        kernels_step(timeseries, param_space, state, next, M2, mean);
+        kernels_step(timeseries, param_space, state, next, M2, mean, conn2_antidiag);
         double time = omp_get_wtime() - start_time;
         printf("computation time %f sec\n", time);
 
