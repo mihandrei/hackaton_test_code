@@ -97,8 +97,8 @@ void kernels_step(double *param_space, double *state, double *next,
         #pragma acc data copyin(state[0: NSV * NNODES * NSWEEP])\
                          create(next[0: NSV * NNODES * NSWEEP])\
                          copyin(param_space[0: NNODES * NSWEEP])\
-                         copyout(M2[0: NSV * NNODES * NSWEEP])\
-                         create(mean[0: NSV * NNODES * NSWEEP])\
+                         copy(M2[0: NSV * NNODES * NSWEEP])\
+                         copyin(mean[0: NSV * NNODES * NSWEEP])\
                          copyin(connectivity[0:NNODES*NNODES])
 
         {
