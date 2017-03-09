@@ -47,7 +47,6 @@ void print_params(double *params){
 }
 
 #pragma acc routine seq
-#pragma acc routine seq
 void data_reduce_kernel(double *ret, const double *state, int t) {
         if (t % TEMPORAL_SUBSAMPLE == 0){ // % here can be avoided by another loop under t in parent temporal iteration
                 t = t / TEMPORAL_SUBSAMPLE;
@@ -95,7 +94,7 @@ void compute_incoming_activity_kernel(const double *state,
 void kernels_step(double *param_space, double *state, double *next,
                   double *M2, double *mean, const double *connectivity){
 
-        #pragma acc data copy(state[0: NSV * NNODES * NSWEEP])\
+        #pragma acc data copyin(state[0: NSV * NNODES * NSWEEP])\
                          create(next[0: NSV * NNODES * NSWEEP])\
                          copyin(param_space[0: NNODES * NSWEEP])\
                          copyout(M2[0: NSV * NNODES * NSWEEP])\
@@ -107,7 +106,6 @@ void kernels_step(double *param_space, double *state, double *next,
                     //    #pragma omp parallel for
                         #pragma acc parallel loop collapse(2)
                         for (int param_idx = 0; param_idx < NSWEEP; param_idx++) {
-//                                #pragma acc loop
                                 for (int n_idx = 0; n_idx < NNODES; n_idx++) {
                                         double incoming_activity[N_CV] = {0, 0};
                                         // Calc incoming activity from coupled
@@ -133,9 +131,8 @@ void kernels_step(double *param_space, double *state, double *next,
                         // data reduction and copy to output buffer
                         //data_reduce_kernel(ret, state, t);
                        // #pragma omp parallel for
-                        #pragma acc parallel loop
+                        #pragma acc parallel loop collapse(2)
                         for (int param_idx1 = 0; param_idx1 < NSWEEP; param_idx1++) {
-                                #pragma acc loop
                                 for (int n_idx1 = 0; n_idx1 < NNODES; n_idx1++) {
                                         long offset1 = param_idx1 * NNODES * NSV
                                                       + n_idx1 * NSV;
@@ -153,6 +150,7 @@ void kernels_step(double *param_space, double *state, double *next,
                         }
                 }
 
+                #pragma acc parallel loop
                 for (int i = 0; i < NSWEEP * NNODES * NSV; ++i) {
                         M2[i] /= (NGPU_TIMESTEPS - 1);
                 }
