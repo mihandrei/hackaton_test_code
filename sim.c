@@ -124,10 +124,10 @@ void kernels_step(double *param_space, double *state, double *next,
                                                 );
                                 }
                         }
-                        // swap current and next buffer
-                        double *tmp = state;
-                        state = next;
-                        next = tmp;
+                        #pragma acc parallel loop
+                        for (int i = 0; i < NSV*NNODES*NSWEEP; ++i) {
+                                state[i] = next[i];
+                        }
                         // data reduction and copy to output buffer
                         //data_reduce_kernel(ret, state, t);
                        // #pragma omp parallel for

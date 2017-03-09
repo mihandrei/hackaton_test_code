@@ -28,7 +28,7 @@ def plot_timeseries():
 
 def plot_par_variance(node):
     data = read_out_array(sys.argv[1])
-    plt.imshow(data[:, node, :], interpolation='nearest')
+    plt.imshow(data[:, node, :], interpolation='nearest', extent=[0,6,0,6])
 
 plot_par_variance(0)
 # plot_timeseries()
