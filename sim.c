@@ -122,31 +122,21 @@ void kernels_step(double *param_space, double *state, double *next,
                                                   state + offset,
                                                   next + offset
                                                 );
+                                        #pragma acc loop
+                                        for (int sv = 0; sv < NSV; sv++) {
+                                                double delta, delta2;
+                                                double x = next[offset + sv];
+
+                                                delta = x - mean[offset + sv];
+                                                mean[offset + sv] += delta / (t + 1);
+                                                delta2 = x - mean[offset + sv];
+                                                M2[offset + sv] += delta * delta2;
+                                        }
                                 }
                         }
                         #pragma acc parallel loop
                         for (int i = 0; i < NSV*NNODES*NSWEEP; ++i) {
                                 state[i] = next[i];
-                        }
-                        // data reduction and copy to output buffer
-                        //data_reduce_kernel(ret, state, t);
-                       // #pragma omp parallel for
-                        #pragma acc parallel loop collapse(2)
-                        for (int param_idx1 = 0; param_idx1 < NSWEEP; param_idx1++) {
-                                for (int n_idx1 = 0; n_idx1 < NNODES; n_idx1++) {
-                                        long offset1 = param_idx1 * NNODES * NSV
-                                                      + n_idx1 * NSV;
-                                        #pragma acc loop
-                                        for (int sv = 0; sv < NSV; sv++) {
-                                                double delta, delta2;
-                                                double x = state[offset1 + sv];
-
-                                                delta = x - mean[offset1 + sv];
-                                                mean[offset1 + sv] += delta / (t + 1);
-                                                delta2 = x - mean[offset1 + sv];
-                                                M2[offset1 + sv] += delta * delta2;
-                                        }
-                                }
                         }
                 }
 

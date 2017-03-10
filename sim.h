@@ -1,12 +1,12 @@
 #ifndef SIM_
 #define SIM_
 //(4000/0.05)
-#define NGPU_TIMESTEPS 800000
-#define NSWEEP 128
+#define NGPU_TIMESTEPS 40000
+#define NSWEEP (32*32)
 
 #define NSV 6
 #define NNODES 2
-#define DT 0.02
+#define DT 0.025
 
 #define N_CV 2 // no of coupled variables
 // coupling var indexes
